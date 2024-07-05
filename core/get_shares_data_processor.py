@@ -20,7 +20,7 @@ class SharesDataLoader():
         # создадим объект datetime в таймзоне UTC, чтобы не применялось смещение локальной таймзоны
         # self._utc_till = datetime.datetime.now(self.timezone)# datetime.datetime(2021, 10, 10, tzinfo=self.timezone)
 
-    def connect_to_metatrader5(self, path):
+    def connect_to_metatrader5(self, path)
         mt5.initialize(path=path)
         # установим подключение к терминалу MetaTrader 5
         if not mt5.initialize():
@@ -172,17 +172,17 @@ class SharesDataLoader():
         data.to_csv(filename, index=False, encoding='utf-8')
 
     def export_to_csv(self, ticker, timeframe, how_many_bars, export_dir):
-        _timeframe = "D1"
-        if timeframe == mt5.TIMEFRAME_MN1:  _timeframe = "MN1"
-        if timeframe == mt5.TIMEFRAME_W1:   _timeframe = "W1"
-        if timeframe == mt5.TIMEFRAME_D1:   _timeframe = "D1"
-        if timeframe == mt5.TIMEFRAME_H4:   _timeframe = "H4"
-        if timeframe == mt5.TIMEFRAME_H1:   _timeframe = "H1"
-        if timeframe == mt5.TIMEFRAME_M30:  _timeframe = "M30"
-        if timeframe == mt5.TIMEFRAME_M15:  _timeframe = "M15"
-        if timeframe == mt5.TIMEFRAME_M10:  _timeframe = "M10"
-        if timeframe == mt5.TIMEFRAME_M5:   _timeframe = "M5"
-        if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
+        _timeframe = "d1"
+        if timeframe == mt5.TIMEFRAME_MN1:  _timeframe = "mn1"
+        if timeframe == mt5.TIMEFRAME_W1:   _timeframe = "w1"
+        if timeframe == mt5.TIMEFRAME_D1:   _timeframe = "d1"
+        if timeframe == mt5.TIMEFRAME_H4:   _timeframe = "h4"
+        if timeframe == mt5.TIMEFRAME_H1:   _timeframe = "h1"
+        if timeframe == mt5.TIMEFRAME_M30:  _timeframe = "m30"
+        if timeframe == mt5.TIMEFRAME_M15:  _timeframe = "m15"
+        if timeframe == mt5.TIMEFRAME_M10:  _timeframe = "m10"
+        if timeframe == mt5.TIMEFRAME_M5:   _timeframe = "m5"
+        if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "m1"
 
         table_name = ticker + "_" + _timeframe
         self.cursor.execute(
@@ -198,7 +198,7 @@ class SharesDataLoader():
         dataframe.to_csv(os.path.join(export_dir, ticker+"_"+_timeframe+".csv"), index=False, encoding='utf-8')
 
     def always_get_share_data(self, ticker, timeframe):
-        _timeframe = "D1"
+        _timeframe = "d1"
         how_many_bars = 0
         time_in_seconds_bar = 0
         if timeframe == mt5.TIMEFRAME_D1:   time_in_seconds_bar = 86400  # 60*60*24
@@ -222,17 +222,25 @@ class SharesDataLoader():
         if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
 
         table_name = ticker + "_" + _timeframe
-
+        print(ticker, _timeframe)
+        print(table_name)
         # ----------------------- UPDATE HISTORY -----------------------
         while True:
             # let's execute our query to db
             self.cursor.execute(
                 "SELECT max(time) FROM `" + table_name + "`"
             )
-
+            if self.cursor.execute(
+                "SELECT max(time) FROM `" + table_name + "`"
+            ): print("Таблица есть")
+            print("YES")
             # Get all data from table
             rows = self.cursor.fetchall()
             last_bar_time = 0
+            print(rows)
+            if rows[0][0] == None:
+                print("NO")
+            print(rows[0][0])
 
             if rows[0][0] == None:
                 how_many_bars = self.how_many_bars_max
@@ -244,14 +252,13 @@ class SharesDataLoader():
                 today = datetime.datetime.now()
                 num_bars_to_load = ((today - last_bar_time).total_seconds()) // time_in_seconds_bar + 1
                 print(num_bars_to_load)
-
                 how_many_bars = int(num_bars_to_load)
-
+            print("YES")
             # получим данные по завтрашний день
             utc_till = datetime.datetime.now() + datetime.timedelta(days=1)
             print(utc_till)
             rates = mt5.copy_rates_from(ticker, timeframe, utc_till, how_many_bars)
-
+            print(rates)
             # создадим из полученных данных DataFrame
             rates_frame = pd.DataFrame(rates)
             # сконвертируем время в виде секунд в формат datetime
@@ -293,6 +300,8 @@ class SharesDataLoader():
                 break
 
         # ----------------------- Update in Real Time -----------------------
+        from time import sleep
+        t = 1
         while True:
             next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
             wait_for_calculated = int((next_bar_time - datetime.datetime.now()).total_seconds())
@@ -305,7 +314,7 @@ class SharesDataLoader():
                     print(wait_for_calculated - sec)
                 else:
                     print(wait_for_calculated - sec, end=" ")
-                cv2.waitKey(1000)
+                sleep(t)
 
             # add new data to table
             # print(datetime.datetime.now())
