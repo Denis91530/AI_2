@@ -1,7 +1,7 @@
 #pip install opencv-python mysqlclient MetaTrader5 pandas pytz
 
 from core.get_shares_data_processor import SharesDataLoader
-import MetaTrader5 as mt5       # импортируем модуль для подключения к MetaTrader5
+import MetaTrader5 as mt5     # импортируем модуль для подключения к MetaTrader5
 import datetime
 from threading import Thread    # для поточной закачки разных датафреймов
 import cv2
@@ -16,17 +16,16 @@ import pytz
 pd.set_option('display.max_columns', 500) # сколько столбцов показываем
 pd.set_option('display.width', 1500)      # макс. ширина таблицы для показа
 
-import MetaTrader5 as mt5
 # выведем данные о пакете MetaTrader5
 print("MetaTrader5 package author: ",mt5.__author__)
 print("MetaTrader5 package version: ",mt5.__version__)
 
 
 def main():
-    ticker = "SBER"
+    ticker = "_SBER"
     timeframe = mt5.TIMEFRAME_D1
     how_many_bars = 70000
-    load_data = SharesDataLoader("SBER")
+    load_data = SharesDataLoader("_SBER")
     load_data.connect_to_metatrader5(path=f"C:\Program Files\MetaTrader 5\terminal64.exe")
     load_data.connect_to_db( host="127.0.0.1",
                             user="root",

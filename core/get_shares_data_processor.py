@@ -20,7 +20,7 @@ class SharesDataLoader():
         # создадим объект datetime в таймзоне UTC, чтобы не применялось смещение локальной таймзоны
         # self._utc_till = datetime.datetime.now(self.timezone)# datetime.datetime(2021, 10, 10, tzinfo=self.timezone)
 
-    def connect_to_metatrader5(self, path)
+    def connect_to_metatrader5(self, path):
         mt5.initialize(path=path)
         # установим подключение к терминалу MetaTrader 5
         if not mt5.initialize():
@@ -233,13 +233,11 @@ class SharesDataLoader():
             if self.cursor.execute(
                 "SELECT max(time) FROM `" + table_name + "`"
             ): print("Таблица есть")
-            print("YES")
+
             # Get all data from table
             rows = self.cursor.fetchall()
             last_bar_time = 0
             print(rows)
-            if rows[0][0] == None:
-                print("NO")
             print(rows[0][0])
 
             if rows[0][0] == None:
@@ -269,7 +267,7 @@ class SharesDataLoader():
             print("\nВыведем датафрейм с данными")
             print(rates_frame)
 
-            for i in range(len(rates_frame.index) - 1):  # последний бар не берем -1 т.к. он еще формируется
+            for i in range(len(rates_frame.index)):  # последний бар не берем -1 т.к. он еще формируется
                 _time = rates_frame.at[i, "time"]
                 _open = rates_frame.at[i, "open"]
                 _high = rates_frame.at[i, "high"]
@@ -291,13 +289,18 @@ class SharesDataLoader():
             self.conn.commit()
 
             last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"]
-            print(last_bar_time)
+
+            print(datetime.datetime.now())
+            print(rates_frame.loc[len(rates_frame.index) - 1])
+            print(last_bar_time, "WWW")
 
             next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
             print(next_bar_time)
 
             if next_bar_time > datetime.datetime.now():
                 break
+            else:
+                print("Не получилось выйти из цикла")
 
         # ----------------------- Update in Real Time -----------------------
         from time import sleep
