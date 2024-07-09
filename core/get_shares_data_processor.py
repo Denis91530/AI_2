@@ -24,27 +24,27 @@ class SharesDataLoader():
         mt5.initialize(path=path)
         # установим подключение к терминалу MetaTrader 5
         if not mt5.initialize():
-            print("connection to MetaTrader5 failed, error code =", mt5.last_error())
+            print("Нет подключения к MetaTrader5, код ошибки =", mt5.last_error())
             # завершим подключение к терминалу MetaTrader 5
             mt5.shutdown()
             quit()
         else:
-            print("Connection to MetaTrader5: OK")
+            print("Успешное подключение к MetaTrader5")
 
     def disconnect_from_metatrader5(self):
         # Close connection
-        if self.connection_to_db: self.conn.close(); print("Disconnection from db: OK")
+        if self.connection_to_db: self.conn.close(); print("Успешное отключение от базы данных")
         mt5.shutdown()
-        print("Disconnection from MetaTrader5: OK")
+        print("Успешное отключение от MetaTrader5")
 
     def connect_to_db(self, host, user, passwd, db):
         try:
             self.conn = MySQLdb.connect(host=host, user=user, passwd=passwd, db=db)
             self.cursor = self.conn.cursor()
             self.connection_to_db = True
-            print("Connection to db: OK")
+            print("Успешное подключение к базе данных")
         except MySQLdb.Error as ex:
-            print("connection to DB failed, error code =", ex)
+            print("Нет подключения к базе данных, код ошибки =", ex)
             quit()
 
     def is_file_csv_exists(self, ticker, timeframe, how_many_bars_max, how_many_bars_update, export_dir, by_timeframes=False):
@@ -172,33 +172,33 @@ class SharesDataLoader():
         data.to_csv(filename, index=False, encoding='utf-8')
 
     def export_to_csv(self, ticker, timeframe, how_many_bars, export_dir):
-        _timeframe = "d1"
-        if timeframe == mt5.TIMEFRAME_MN1:  _timeframe = "mn1"
-        if timeframe == mt5.TIMEFRAME_W1:   _timeframe = "w1"
-        if timeframe == mt5.TIMEFRAME_D1:   _timeframe = "d1"
-        if timeframe == mt5.TIMEFRAME_H4:   _timeframe = "h4"
-        if timeframe == mt5.TIMEFRAME_H1:   _timeframe = "h1"
-        if timeframe == mt5.TIMEFRAME_M30:  _timeframe = "m30"
-        if timeframe == mt5.TIMEFRAME_M15:  _timeframe = "m15"
-        if timeframe == mt5.TIMEFRAME_M10:  _timeframe = "m10"
-        if timeframe == mt5.TIMEFRAME_M5:   _timeframe = "m5"
-        if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "m1"
+        _timeframe = "D1"
+        if timeframe == mt5.TIMEFRAME_MN1:  _timeframe = "MN1"
+        if timeframe == mt5.TIMEFRAME_W1:   _timeframe = "W1"
+        if timeframe == mt5.TIMEFRAME_D1:   _timeframe = "D1"
+        if timeframe == mt5.TIMEFRAME_H4:   _timeframe = "H4"
+        if timeframe == mt5.TIMEFRAME_H1:   _timeframe = "H1"
+        if timeframe == mt5.TIMEFRAME_M30:  _timeframe = "M30"
+        if timeframe == mt5.TIMEFRAME_M15:  _timeframe = "M15"
+        if timeframe == mt5.TIMEFRAME_M10:  _timeframe = "M10"
+        if timeframe == mt5.TIMEFRAME_M5:   _timeframe = "M5"
+        if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
 
         table_name = ticker + "_" + _timeframe
         self.cursor.execute(
-            "SELECT time, open, high, low, close, volume FROM `" + table_name + "`" + " ORDER BY time DESC LIMIT " + str(how_many_bars)
+            "SELECT time, open, high, low, close, tick_volume FROM `" + table_name + "`"
         )
 
         # Get all data from table
         rows = self.cursor.fetchall()
-        dataframe = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Volume"])
+        dataframe = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Tick_Volume"])
         dataframe = dataframe[::-1].reset_index(drop=True)  # Reverse Ordering of DataFrame Rows + Reset index
 
         if not os.path.exists(export_dir): os.makedirs(export_dir)
         dataframe.to_csv(os.path.join(export_dir, ticker+"_"+_timeframe+".csv"), index=False, encoding='utf-8')
 
     def always_get_share_data(self, ticker, timeframe):
-        _timeframe = "d1"
+        _timeframe = "D1"
         how_many_bars = 0
         time_in_seconds_bar = 0
         if timeframe == mt5.TIMEFRAME_D1:   time_in_seconds_bar = 86400  # 60*60*24
@@ -222,41 +222,35 @@ class SharesDataLoader():
         if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
 
         table_name = ticker + "_" + _timeframe
-        print(ticker, _timeframe)
-        print(table_name)
-        # ----------------------- UPDATE HISTORY -----------------------
+        print("Название таблицы:", table_name)
+        # ----------------------- Обновление истории -----------------------
         while True:
             # let's execute our query to db
             self.cursor.execute(
                 "SELECT max(time) FROM `" + table_name + "`"
             )
-            if self.cursor.execute(
-                "SELECT max(time) FROM `" + table_name + "`"
-            ): print("Таблица есть")
+            if self.cursor.execute( "SELECT max(time) FROM `" + table_name + "`"):
+                print("Таблица <", table_name, "> есть")
 
             # Get all data from table
             rows = self.cursor.fetchall()
             last_bar_time = 0
-            print(rows)
-            print(rows[0][0])
 
             if rows[0][0] == None:
                 how_many_bars = self.how_many_bars_max
             else:
-                last_bar_time = rows[0][0]
-                print(last_bar_time)
+                last_bar_time = rows[0][0] + datetime.timedelta(days=1)
+                print("Последнее обновление было в", last_bar_time)
 
                 # calc missed bars
                 today = datetime.datetime.now()
                 num_bars_to_load = ((today - last_bar_time).total_seconds()) // time_in_seconds_bar + 1
-                print(num_bars_to_load)
+                print("Новых баров:", num_bars_to_load)
                 how_many_bars = int(num_bars_to_load)
-            print("YES")
             # получим данные по завтрашний день
             utc_till = datetime.datetime.now() + datetime.timedelta(days=1)
-            print(utc_till)
+            print("Время до которого сейчас скачаются бары в новый датафрейм:", utc_till)
             rates = mt5.copy_rates_from(ticker, timeframe, utc_till, how_many_bars)
-            print(rates)
             # создадим из полученных данных DataFrame
             rates_frame = pd.DataFrame(rates)
             # сконвертируем время в виде секунд в формат datetime
@@ -264,10 +258,10 @@ class SharesDataLoader():
                 rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
 
             # выведем данные
-            print("\nВыведем датафрейм с данными")
+            print("\nВесь новый датафрейм с данными:")
             print(rates_frame)
-
-            for i in range(len(rates_frame.index)):  # последний бар не берем -1 т.к. он еще формируется
+            print("\nТолько скачанный датафрейм с данными из нового:")
+            for i in range(len(rates_frame.index) - 1):  # Последний бар не берем -1 т.к. он еще формируется
                 _time = rates_frame.at[i, "time"]
                 _open = rates_frame.at[i, "open"]
                 _high = rates_frame.at[i, "high"]
@@ -275,6 +269,7 @@ class SharesDataLoader():
                 _close = rates_frame.at[i, "close"]
                 _tick_volume = rates_frame.at[i, "tick_volume"]
                 _real_volume = rates_frame.at[i, "real_volume"]
+
                 print(i, _time, _open, _high, _low, _close, _tick_volume, _real_volume)
 
                 if ((rows[0][0] != None) and (_time > last_bar_time)) or ((rows[0][0] == None)):
@@ -290,30 +285,69 @@ class SharesDataLoader():
 
             last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"]
 
-            print(datetime.datetime.now())
-            print(rates_frame.loc[len(rates_frame.index) - 1])
-            print(last_bar_time, "WWW")
-
-            next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
-            print(next_bar_time)
+            print("\nВремя загрузки последнего бара:", last_bar_time)
+            a = datetime.datetime.now().weekday()
+            if a == 0 or a == 5 or a == 6:
+                next_bar_time = last_bar_time + datetime.timedelta(days=3)
+            else:
+                next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
+            print("Время загрузки следующего бара:", next_bar_time)
+            print("Время сейчас:", datetime.datetime.now())
 
             if next_bar_time > datetime.datetime.now():
                 break
             else:
                 print("Не получилось выйти из цикла")
 
-        # ----------------------- Update in Real Time -----------------------
+        # ----------------------- Обновление в реальном времени -----------------------
         from time import sleep
         t = 1
         while True:
-            next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
+
+            # ----------------------- Создание таблицы в реальном времени -----------------------
+
+            export_dir = "csv_export"
+
+            _timeframe = "D1"
+            if timeframe == mt5.TIMEFRAME_MN1:  _timeframe = "MN1"
+            if timeframe == mt5.TIMEFRAME_W1:   _timeframe = "W1"
+            if timeframe == mt5.TIMEFRAME_D1:   _timeframe = "D1"
+            if timeframe == mt5.TIMEFRAME_H4:   _timeframe = "H4"
+            if timeframe == mt5.TIMEFRAME_H1:   _timeframe = "H1"
+            if timeframe == mt5.TIMEFRAME_M30:  _timeframe = "M30"
+            if timeframe == mt5.TIMEFRAME_M15:  _timeframe = "M15"
+            if timeframe == mt5.TIMEFRAME_M10:  _timeframe = "M10"
+            if timeframe == mt5.TIMEFRAME_M5:   _timeframe = "M5"
+            if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
+
+            table_name = ticker + "_" + _timeframe
+            self.cursor.execute(
+                "SELECT time, open, high, low, close, tick_volume FROM `" + table_name + "`"
+            )
+
+            # Get all data from table
+            rows = self.cursor.fetchall()
+            dataframe = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Tick_Volume"])
+            # dataframe = dataframe[::-1].reset_index(drop=True)  # Reverse Ordering of DataFrame Rows + Reset index
+
+            if not os.path.exists(export_dir): os.makedirs(export_dir)
+            dataframe.to_csv(os.path.join(export_dir, ticker + "_" + _timeframe + ".csv"), index=False,
+                             encoding='utf-8')
+            # ----------------------- Создание таблицы в реальном времени -----------------------
+
+            a = datetime.datetime.now().weekday()
+            if a == 0 or a == 5 or a == 6:
+                next_bar_time = last_bar_time + datetime.timedelta(days=3)
+            else:
+                next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
             wait_for_calculated = int((next_bar_time - datetime.datetime.now()).total_seconds())
-            print("Last bar time: %s Next bar time: %s" % (last_bar_time, next_bar_time))
-            print("waiting %s seconds..." % (wait_for_calculated))
+            print("\nДля проверки:\nВремя загрузки последнего бара:", last_bar_time, "Время загрузки следующего бара:",
+                  next_bar_time)
+            print("Осталось ждать:", wait_for_calculated, "секунд")
 
             # cv2.waitKey(abs(wait_for_calculated*1000+500)) # 500 milsec delay
             for sec in range(abs(wait_for_calculated)):
-                if ((sec + 1) % 30 == 0):
+                if ((sec + 1) % 25 == 0):
                     print(wait_for_calculated - sec)
                 else:
                     print(wait_for_calculated - sec, end=" ")
@@ -321,7 +355,8 @@ class SharesDataLoader():
 
             # add new data to table
             # print(datetime.datetime.now())
-            print("Last bar time: %s Next bar time: %s" % (last_bar_time, next_bar_time))
+            print("\nДля проверки:\nВремя загрузки последнего бара:", last_bar_time, "Время загрузки следующего бара:",
+                  next_bar_time)
             # check_last_bar_writed_to_db = get_last_bar_time(cursor)
             # print(check_last_bar_writed_to_db)
             # if (last_bar_time == check_last_bar_writed_to_db):
@@ -358,10 +393,10 @@ class SharesDataLoader():
                     _time = rates_frame.at[i, "time"]
                     if _time > last_bar_time:
                         check_we_have_next_bar_loaded = True
-                        print("We have got next bar from Metatrader")
+                        print("Были получены данные следующей свечи из Metatrader 5")
                     else:
-                        print("Will try again - to get next bar ... ")
-                        cv2.waitKey(500)  # 500 milsec delay
+                        print("Данные следующей свечи не были получены из Metatrader 5, сейчас будет следующая попытка")
+                        sleep(t)  # 1000 milsec delay
 
             # выведем данные
             print("\nВыведем датафрейм с данными")
@@ -389,6 +424,7 @@ class SharesDataLoader():
             self.conn.commit()
 
             last_bar_time = next_bar_time
-        # ----------------------- Update in Real Time -----------------------
+
+        # ----------------------- Обновление в реальном времени -----------------------
 
         pass

@@ -16,10 +16,6 @@ import pytz
 pd.set_option('display.max_columns', 500) # сколько столбцов показываем
 pd.set_option('display.width', 1500)      # макс. ширина таблицы для показа
 
-# выведем данные о пакете MetaTrader5
-print("MetaTrader5 package author: ",mt5.__author__)
-print("MetaTrader5 package version: ",mt5.__version__)
-
 
 def main():
     ticker = "_SBER"
@@ -31,7 +27,6 @@ def main():
                             user="root",
                             passwd="DEN123",
                             db="bd_for_action")
-
     load_data.always_get_share_data(ticker=ticker, timeframe=timeframe)
 
     load_data.disconnect_from_metatrader5()
