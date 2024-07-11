@@ -260,24 +260,53 @@ class SharesDataLoader():
             # выведем данные
             print("\nВесь новый датафрейм с данными:")
             print(rates_frame)
-            print("\nТолько скачанный датафрейм с данными из нового:")
-            for i in range(len(rates_frame.index) - 1):  # Последний бар не берем -1 т.к. он еще формируется
-                _time = rates_frame.at[i, "time"]
-                _open = rates_frame.at[i, "open"]
-                _high = rates_frame.at[i, "high"]
-                _low = rates_frame.at[i, "low"]
-                _close = rates_frame.at[i, "close"]
-                _tick_volume = rates_frame.at[i, "tick_volume"]
-                _real_volume = rates_frame.at[i, "real_volume"]
 
-                print(i, _time, _open, _high, _low, _close, _tick_volume, _real_volume)
+            desired_time = datetime.time(10, 0, 0)
+            current_time = datetime.datetime.now().time()
 
-                if ((rows[0][0] != None) and (_time > last_bar_time)) or ((rows[0][0] == None)):
-                    # let's insert row in table
-                    self.cursor.execute(
-                        "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, tick_volume) "
+            if current_time < desired_time:
+                # Код, если текущее время меньше 10:00
+                print("\nСейчас время до 10:00, биржа закрыта")
+                print("\nТолько скачанный датафрейм с данными из нового:")
+
+                for i in range(len(rates_frame.index)):
+                    _time = rates_frame.at[i, "time"]
+                    _open = rates_frame.at[i, "open"]
+                    _high = rates_frame.at[i, "high"]
+                    _low = rates_frame.at[i, "low"]
+                    _close = rates_frame.at[i, "close"]
+                    _tick_volume = rates_frame.at[i, "tick_volume"]
+                    _real_volume = rates_frame.at[i, "real_volume"]
+
+                    print(i, _time, _open, _high, _low, _close, _tick_volume, _real_volume)
+                    if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
+                        # let's insert row in table
+                        self.cursor.execute(
+                            "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, tick_volume) "
+                                                           "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                            (_time, _open, _high, _low, _close, _real_volume, _tick_volume))
+            else:
+                # Код, если текущее время больше или равно 10:00
+                print("\nСейчас время после 10:00, биржа открыта")
+                print("\nТолько скачанный датафрейм с данными из нового:")
+                for i in range(len(rates_frame.index) - 1):  # Последний бар не берем -1 т.к. он еще формируется
+                    _time = rates_frame.at[i, "time"]
+                    _open = rates_frame.at[i, "open"]
+                    _high = rates_frame.at[i, "high"]
+                    _low = rates_frame.at[i, "low"]
+                    _close = rates_frame.at[i, "close"]
+                    _tick_volume = rates_frame.at[i, "tick_volume"]
+                    _real_volume = rates_frame.at[i, "real_volume"]
+
+                    print(i, _time, _open, _high, _low, _close, _tick_volume, _real_volume)
+
+
+                    if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
+                        # let's insert row in table
+                        self.cursor.execute(
+                            "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, tick_volume) "
                                                         "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (_time, _open, _high, _low, _close, _real_volume, _tick_volume))
+                            (_time, _open, _high, _low, _close, _real_volume, _tick_volume))
 
             # to commit changes to db!!!
             # run this command:
@@ -341,7 +370,7 @@ class SharesDataLoader():
             else:
                 next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
             wait_for_calculated = int((next_bar_time - datetime.datetime.now()).total_seconds())
-            print("\nДля проверки:\nВремя загрузки последнего бара:", last_bar_time, "Время загрузки следующего бара:",
+            print("\nДля проверки:\nВремя загрузки последнего бара:", last_bar_time, "| Время загрузки следующего бара:",
                   next_bar_time)
             print("Осталось ждать:", wait_for_calculated, "секунд")
 
@@ -355,8 +384,6 @@ class SharesDataLoader():
 
             # add new data to table
             # print(datetime.datetime.now())
-            print("\nДля проверки:\nВремя загрузки последнего бара:", last_bar_time, "Время загрузки следующего бара:",
-                  next_bar_time)
             # check_last_bar_writed_to_db = get_last_bar_time(cursor)
             # print(check_last_bar_writed_to_db)
             # if (last_bar_time == check_last_bar_writed_to_db):
