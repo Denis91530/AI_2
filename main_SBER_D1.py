@@ -18,10 +18,10 @@ pd.set_option('display.width', 1500)      # макс. ширина таблиц�
 
 
 def main():
-    ticker = "_LKOH"
+    ticker = "_ROSN"
     timeframe = mt5.TIMEFRAME_D1
     how_many_bars = 70000
-    load_data = SharesDataLoader("_LKOH")
+    load_data = SharesDataLoader("_ROSN")
     load_data.connect_to_metatrader5(path=f"C:\Program Files\MetaTrader 5\terminal64.exe")
     load_data.connect_to_db( host="127.0.0.1",
                             user="root",
