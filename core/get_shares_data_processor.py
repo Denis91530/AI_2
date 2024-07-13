@@ -263,8 +263,9 @@ class SharesDataLoader():
 
             desired_time = datetime.time(10, 0, 0)
             current_time = datetime.datetime.now().time()
+            a = datetime.datetime.now().weekday()
 
-            if current_time < desired_time:
+            if current_time < desired_time or a == 5 or a == 6:
                 # Код, если текущее время меньше 10:00
                 print("\nСейчас время до 10:00, биржа закрыта")
                 print("\nТолько скачанный датафрейм с данными из нового:")
@@ -311,11 +312,12 @@ class SharesDataLoader():
             # to commit changes to db!!!
             # run this command:
             self.conn.commit()
-
-            last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"]
+            if current_time < desired_time or a == 5 or a == 6:
+                last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(seconds=time_in_seconds_bar)
+            else:
+                last_bar_time = rates_frame.at[len(rates_frame.index), "time"]
 
             print("\nВремя загрузки последнего бара:", last_bar_time)
-            a = datetime.datetime.now().weekday()
             if a == 0 or a == 5 or a == 6:
                 next_bar_time = last_bar_time + datetime.timedelta(days=3)
             else:
