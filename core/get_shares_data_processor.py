@@ -239,7 +239,7 @@ class SharesDataLoader():
             if rows[0][0] == None:
                 how_many_bars = self.how_many_bars_max
             else:
-                last_bar_time = rows[0][0] + datetime.timedelta(days=1)
+                last_bar_time = rows[0][0] + datetime.timedelta(seconds=time_in_seconds_bar)
                 print("Последнее обновление было в", last_bar_time)
 
                 # calc missed bars
@@ -248,7 +248,7 @@ class SharesDataLoader():
                 print("Новых баров:", num_bars_to_load)
                 how_many_bars = int(num_bars_to_load)
             # получим данные по завтрашний день
-            utc_till = datetime.datetime.now() + datetime.timedelta(days=1)
+            utc_till = datetime.datetime.now() + datetime.timedelta(seconds=time_in_seconds_bar)
             print("Время до которого сейчас скачаются бары в новый датафрейм:", utc_till)
             rates = mt5.copy_rates_from(ticker, timeframe, utc_till, how_many_bars)
             # создадим из полученных данных DataFrame
@@ -313,13 +313,15 @@ class SharesDataLoader():
             # run this command:
             self.conn.commit()
             if current_time < desired_time or a == 5 or a == 6:
-                last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(seconds=time_in_seconds_bar)
+                last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(seconds = time_in_seconds_bar)
+            elif a == 0 and current_time > desired_time:
+                last_bar_time = rates_frame.at[len(rates_frame.index) - 2, "time"] + datetime.timedelta(seconds = time_in_seconds_bar)
             else:
-                last_bar_time = rates_frame.at[len(rates_frame.index), "time"]
+                last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"]
 
             print("\nВремя загрузки последнего бара:", last_bar_time)
             if a == 0 or a == 5 or a == 6:
-                next_bar_time = last_bar_time + datetime.timedelta(days=3)
+                next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar * 3)
             else:
                 next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
             print("Время загрузки следующего бара:", next_bar_time)
@@ -368,7 +370,7 @@ class SharesDataLoader():
 
             a = datetime.datetime.now().weekday()
             if a == 0 or a == 5 or a == 6:
-                next_bar_time = last_bar_time + datetime.timedelta(days=3)
+                next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar * 3)
             else:
                 next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
             wait_for_calculated = int((next_bar_time - datetime.datetime.now()).total_seconds())
@@ -402,7 +404,7 @@ class SharesDataLoader():
             how_many_bars = int(num_bars_to_load)
 
             # получим данные по завтрашний день
-            utc_till = datetime.datetime.now() + datetime.timedelta(days=1)
+            utc_till = datetime.datetime.now() + datetime.timedelta(seconds=time_in_seconds_bar)
             print(utc_till)
 
             # exit(1)

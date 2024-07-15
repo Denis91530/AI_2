@@ -6,8 +6,6 @@ import datetime
 from threading import Thread    # для поточной закачки разных датафреймов
 import cv2
 import pandas as pd
-import os
-import cv2
 import MySQLdb                  # импортируем модуль для работы с БД MySql    # импортируем модуль для подключения к MetaTrader5
 import pandas as pd             # импортируем модуль pandas для вывода полученных данных в табличной форме
 import time, datetime
