@@ -16,7 +16,7 @@ pd.set_option('display.width', 1500)      # макс. ширина таблиц�
 
 
 def main():
-    ticker = "_LKOH"
+    ticker = "_SBER"
     timeframe = mt5.TIMEFRAME_D1
     how_many_bars = 70000
     load_data = SharesDataLoader(ticker)
