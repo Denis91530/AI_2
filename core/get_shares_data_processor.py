@@ -422,7 +422,11 @@ class SharesDataLoader():
                 # проверка, что есть данные следующей свечи
                 for i in range(len(rates_frame.index)):
                     _time = rates_frame.at[i, "time"]
-                    if _time > last_bar_time:
+                    print(i)
+                    print(len(rates_frame.index))
+                    print(_time)
+                    print(last_bar_time)
+                    if _time > (last_bar_time - datetime.timedelta(seconds = time_in_seconds_bar)):
                         check_we_have_next_bar_loaded = True
                         print("Были получены данные следующей свечи из Metatrader 5")
                     else:
