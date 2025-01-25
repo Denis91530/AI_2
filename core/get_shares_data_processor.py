@@ -221,15 +221,42 @@ class SharesDataLoader():
         if timeframe == mt5.TIMEFRAME_M5:   _timeframe = "M5"
         if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
 
+        def execute_with_reconnect(self, query, params=None, max_attempts=3):
+            for attempt in range(max_attempts):
+                try:
+                    if params:
+                        self.cursor.execute(query, params)
+                    else:
+                        self.cursor.execute(query)
+                    return
+                except MySQLdb.OperationalError as e:
+                    if e.args[0] in (2006, 2013):
+                        print(f"Ошибка подключения (attempt {attempt + 1}/{max_attempts}): {e}")
+                        try:
+                            self.connect_to_db(host="127.0.0.1",
+                                               user="root",
+                                               passwd="DEN123",
+                                               db="bd_for_action")
+                            self.cursor = self.conn.cursor()
+                            print("Переподключение к базе данных...")
+                        except MySQLdb.Error as re_error:
+                            print(f"Ошибка переподключения к базе данных: {re_error}")
+                            if attempt == max_attempts - 1:
+                                raise
+                            else:
+                                print("Прошла попытка №", attempt)
+                    else:
+                        raise
+
         table_name = ticker + "_" + _timeframe
         print("Название таблицы:", table_name)
         # ----------------------- Обновление истории -----------------------
         while True:
             # let's execute our query to db
-            self.cursor.execute(
+            execute_with_reconnect(self,
                 "SELECT max(time) FROM `" + table_name + "`"
             )
-            if self.cursor.execute( "SELECT max(time) FROM `" + table_name + "`"):
+            if execute_with_reconnect(self,  "SELECT max(time) FROM `" + table_name + "`"):
                 print("Таблица <", table_name, "> есть")
 
             # Get all data from table
@@ -282,7 +309,7 @@ class SharesDataLoader():
                     print(i, _time, _open, _high, _low, _close, _tick_volume, _real_volume)
                     if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
                         # let's insert row in table
-                        self.cursor.execute(
+                        execute_with_reconnect(self,
                             "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, tick_volume) "
                                                            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
                             (_time, _open, _high, _low, _close, _real_volume, _tick_volume))
@@ -304,7 +331,7 @@ class SharesDataLoader():
 
                     if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
                         # let's insert row in table
-                        self.cursor.execute(
+                        execute_with_reconnect(
                             "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, tick_volume) "
                                                         "VALUES (%s, %s, %s, %s, %s, %s, %s)",
                             (_time, _open, _high, _low, _close, _real_volume, _tick_volume))
@@ -354,7 +381,7 @@ class SharesDataLoader():
             if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
 
             table_name = ticker + "_" + _timeframe
-            self.cursor.execute(
+            execute_with_reconnect(self,
                 "SELECT time, open, high, low, close, tick_volume FROM `" + table_name + "`"
             )
 
@@ -436,7 +463,6 @@ class SharesDataLoader():
             # выведем данные
             print("\nВыведем датафрейм с данными")
             print(rates_frame)
-
             for i in range(len(rates_frame.index)):
                 _time = rates_frame.at[i, "time"]
                 _open = rates_frame.at[i, "open"]
@@ -449,11 +475,10 @@ class SharesDataLoader():
 
                 if _time >= last_bar_time and _time < next_bar_time:
                     # let's insert row in table
-                    self.cursor.execute(
+                    execute_with_reconnect(self,
                         "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, tick_volume) "
                                                         "VALUES (%s, %s, %s, %s, %s, %s, %s)",
                         (_time, _open, _high, _low, _close, _real_volume, _tick_volume))
-
             # to commit changes to db!!!
             # run this command:
             self.conn.commit()
