@@ -23,10 +23,10 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Структура таблицы `SBER_D1`
+-- Структура таблицы `SBER_NEW_D1`
 --
 
-CREATE TABLE `SBER_D1` (
+CREATE TABLE `SBER_NEW_D1` (
   `id` int(11) NOT NULL,
   `time` timestamp NULL DEFAULT NULL,
   `open` double NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE `SBER_D1` (
   `low` double NOT NULL,
   `close` double NOT NULL,
   `volume` double NOT NULL,
-  `tick_volume` double NOT NULL
+  `value` double NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
@@ -42,9 +42,9 @@ CREATE TABLE `SBER_D1` (
 --
 
 --
--- Индексы таблицы `SBER_D1`
+-- Индексы таблицы `SBER_NEW_D1`
 --
-ALTER TABLE `SBER_D1`
+ALTER TABLE `SBER_NEW_D1`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -52,9 +52,9 @@ ALTER TABLE `SBER_D1`
 --
 
 --
--- AUTO_INCREMENT для таблицы `SBER_D1`
+-- AUTO_INCREMENT для таблицы `SBER_NEW_D1`
 --
-ALTER TABLE `SBER_D1`
+ALTER TABLE `SBER_NEW_D1`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5988;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

@@ -1,20 +1,33 @@
+#Сделать, чтобы новая функция правильно работала с таблицей (поизменять имена)
+
+
 import os
 import cv2
 import MySQLdb                  # импортируем модуль для работы с БД MySql
-import MetaTrader5 as mt5       # импортируем модуль для подключения к MetaTrader5
-import pandas as pd             # импортируем модуль pandas для вывода полученных данных в табличной форме
+import MetaTrader5 as mt5       # импортируем модуль для подключения к MetaTrader5            # импортируем модуль pandas для вывода полученных данных в табличной форме
 import time, datetime
 import pytz                     # импортируем модуль pytz для работы с таймзоной
+import numpy as np
+import pandas as pd
+import apimoex
+import datetime
+import requests
+
 
 class SharesDataLoader():
     """A class for loading shares data from MetaTrader5"""
 
-    def __init__(self, share_name):
+    def __init__(self, share_name, ticker):
         self.share_name = share_name
         self.conn = None
         self.cursor = None
         self.connection_to_db = False
         self.how_many_bars_max = 50000
+        # --- Настройка ---
+        self.TICKER = ticker  # Тикер акции
+        self.START_DATE = None
+        self.END_DATE = datetime.date.today().strftime("%Y-%m-%d")  # Сегодняшняя дата
+        # --- Конец настройки ---
 
         self.timezone = pytz.timezone("Etc/UTC")    # установим таймзону в UTC
         # создадим объект datetime в таймзоне UTC, чтобы не применялось смещение локальной таймзоны
@@ -62,34 +75,32 @@ class SharesDataLoader():
 
         if by_timeframes:
             export_dir = os.path.join(export_dir, _timeframe)
-        filename = os.path.join(export_dir, ticker + "_" + _timeframe + ".csv")
+        filename = os.path.join(export_dir, ticker + "_new_" + _timeframe + ".csv")
         is_file_exists = os.path.isfile(filename)  # Существует ли файл
         if is_file_exists:
             return how_many_bars_update
         return how_many_bars_max
 
-    def get_share_data(self, ticker, timeframe, utc_till, how_many_bars, remove_today_bars=False):
-        rates = mt5.copy_rates_from(ticker, timeframe, utc_till, how_many_bars)
-        # создадим из полученных данных DataFrame
-        rates_frame = pd.DataFrame(rates)
-        # сконвертируем время в виде секунд в формат datetime
-        if len(rates_frame.index):
-            rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
+    def get_moex_data(self, start_date, end_date, ticker):
+        """Загружает исторические данные с MOEX ISS API с использованием apimoex."""
+        try:
+            # 1. Формируем параметры запроса
+            start = start_date
+            end = end_date
+            with requests.Session() as session:
+            # 2. Получаем исторические данные (apimoex сама управляет сессией)
+                data = apimoex.get_market_candles(session = session, security = ticker, interval = 24, start = start_date, end = end_date, columns = None)
 
-            if remove_today_bars:  # обрезка данных до now
-                now = datetime.datetime.fromisoformat(datetime.datetime.now().strftime('%Y-%m-%d') + " " + "00:00")
-                rates_frame.set_index('time', inplace=True)
-                indexes = rates_frame.index.tolist()
-                for j in range(1, len(indexes) + 1):
-                    if indexes[len(indexes) - j] < now:
-                        # print("ok j = ", j)
-                        # df_new = df_new[len(indexes) - j + 1:]      # хвост данных
-                        rates_frame = rates_frame[:len(indexes) - j + 1]
-                        break
-                rates_frame.reset_index(inplace=True)
-                # print(rates_frame)
+            # 3. Преобразуем данные в DataFrame
+            df = pd.DataFrame(data)
+            df = df.rename(columns={'begin': 'time'})
+            df["time"] = pd.to_datetime(df["time"], format='%Y-%m-%d %H:%M:%S')
+            df["time"] = df["time"].dt.strftime('%Y-%m-%d')  # Используем .dt.strftime
+            return df.iloc[:, :-1]
 
-        return rates_frame
+        except Exception as e:
+            print(f"Ошибка при загрузке данных: {e}")
+            return None
 
     def get_share_data_from_db(self, ticker, timeframe, how_many_bars):
         if timeframe == mt5.TIMEFRAME_MN1:  timeframe = "MN1"
@@ -103,14 +114,15 @@ class SharesDataLoader():
         if timeframe == mt5.TIMEFRAME_M5:   timeframe = "M5"
         if timeframe == mt5.TIMEFRAME_M1:   timeframe = "M1"
 
-        table_name = ticker + "_" + timeframe
+        table_name = ticker + "_new_" + timeframe
         self.cursor.execute(
-            "SELECT time, open, high, low, close, volume FROM `" + table_name + "`" + " ORDER BY time DESC LIMIT " + str(how_many_bars)
+            "SELECT time, open, high, low, close, volume, value FROM `" + table_name + "`" + " ORDER BY time DESC LIMIT " + str(how_many_bars)
         )
 
         # Get all data from table
         rows = self.cursor.fetchall()
-        dataframe = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Volume"])
+        dataframe = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Volume", "Value"])
+        print(dataframe)
         dataframe = dataframe[::-1].reset_index(drop=True)  # Reverse Ordering of DataFrame Rows + Reset index
         #print(dataframe.dtypes)
         return dataframe
@@ -130,16 +142,17 @@ class SharesDataLoader():
 
         # print(ticker)
         # print(data)
-        data = data[["time", "open", "high", "low", "close", "real_volume"]]
-        data.rename(columns={"time": "datetime", "real_volume": "volume"}, inplace=True)
+        data = data[["time", "open", "high", "low", "close", "volume", "value"]]
+        data.rename(columns={"time": "datetime"}, inplace=True)
 
         if not os.path.exists(export_dir): os.makedirs(export_dir)
         if by_timeframes:
             export_dir = os.path.join(export_dir, _timeframe)
             if not os.path.exists(export_dir): os.makedirs(export_dir)
 
-        filename = os.path.join(export_dir, ticker+"_"+_timeframe+".csv")
-        is_file_exists = os.path.isfile(filename)  # Существует ли файл
+        filename = os.path.join(export_dir, ticker+"_new_"+_timeframe+".csv")
+        is_file_exists = os.path.isfile(filename)
+        print(is_file_exists)# Существует ли файл
         if is_file_exists:
             # если файл есть, то объединяем
             data_from_file = pd.read_csv(filename)  # Считываем файл в DataFrame
@@ -184,18 +197,18 @@ class SharesDataLoader():
         if timeframe == mt5.TIMEFRAME_M5:   _timeframe = "M5"
         if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
 
-        table_name = ticker + "_" + _timeframe
+        table_name = ticker + "_new_" + _timeframe
         self.cursor.execute(
-            "SELECT time, open, high, low, close, tick_volume FROM `" + table_name + "`"
+            "SELECT time, open, high, low, close, volume, value FROM `" + table_name + "`"
         )
 
         # Get all data from table
         rows = self.cursor.fetchall()
-        dataframe = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Tick_Volume"])
+        dataframe = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Volume", "Value"])
         dataframe = dataframe[::-1].reset_index(drop=True)  # Reverse Ordering of DataFrame Rows + Reset index
 
         if not os.path.exists(export_dir): os.makedirs(export_dir)
-        dataframe.to_csv(os.path.join(export_dir, ticker+"_"+_timeframe+".csv"), index=False, encoding='utf-8')
+        dataframe.to_csv(os.path.join(export_dir, ticker+"_new_"+_timeframe+".csv"), index=False, encoding='utf-8')
 
     def execute_with_reconnect(self, query, params=None, max_attempts=3):
         for attempt in range(max_attempts):
@@ -249,7 +262,7 @@ class SharesDataLoader():
         if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
 
 
-        table_name = ticker + "_" + _timeframe
+        table_name = ticker + "_new_" + _timeframe
         print("Название таблицы:", table_name)
         # ----------------------- Обновление истории -----------------------
         while True:
@@ -266,10 +279,11 @@ class SharesDataLoader():
             last_bar_time = 0
 
             if rows[0][0] == None:
-                how_many_bars = self.how_many_bars_max
+                START_DATE = self.START_DATE
             else:
                 last_bar_time = rows[0][0] + datetime.timedelta(seconds=time_in_seconds_bar)
                 print("Последнее обновление было в", last_bar_time)
+                START_DATE = last_bar_time - datetime.timedelta(seconds=time_in_seconds_bar * 7)
 
                 # calc missed bars
                 today = datetime.datetime.now()
@@ -279,12 +293,13 @@ class SharesDataLoader():
             # получим данные по завтрашний день
             utc_till = datetime.datetime.now() + datetime.timedelta(seconds=time_in_seconds_bar)
             print("Время до которого сейчас скачаются бары в новый датафрейм:", utc_till)
-            rates = mt5.copy_rates_from(ticker, timeframe, utc_till, how_many_bars)
+#            rates = mt5.copy_rates_from(ticker, timeframe, utc_till, how_many_bars)
             # создадим из полученных данных DataFrame
-            rates_frame = pd.DataFrame(rates)
+            rates_frame = self.get_moex_data(START_DATE, self.END_DATE, self.TICKER)
             # сконвертируем время в виде секунд в формат datetime
             if len(rates_frame.index):
-                rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
+#                rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
+                rates_frame['time'] = pd.to_datetime(rates_frame['time'])
 
             # выведем данные
             print("\nВесь новый датафрейм с данными:")
@@ -305,16 +320,16 @@ class SharesDataLoader():
                     _high = rates_frame.at[i, "high"]
                     _low = rates_frame.at[i, "low"]
                     _close = rates_frame.at[i, "close"]
-                    _tick_volume = rates_frame.at[i, "tick_volume"]
-                    _real_volume = rates_frame.at[i, "real_volume"]
+                    _volume = rates_frame.at[i, "volume"]
+                    _value = rates_frame.at[i, "value"]
 
-                    print(i, _time, _open, _high, _low, _close, _tick_volume, _real_volume)
+                    print(i, _time, _open, _high, _low, _close, _volume, _value)
                     if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
                         # let's insert row in table
-                        execute_with_reconnect(self,
-                            "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, tick_volume) "
+                        self.execute_with_reconnect(
+                            "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
                                                            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                            (_time, _open, _high, _low, _close, _real_volume, _tick_volume))
+                            (_time, _open, _high, _low, _close, _volume, _value))
             else:
                 # Код, если текущее время больше или равно 10:00
                 print("\nСейчас время после 10:00, биржа открыта")
@@ -325,18 +340,18 @@ class SharesDataLoader():
                     _high = rates_frame.at[i, "high"]
                     _low = rates_frame.at[i, "low"]
                     _close = rates_frame.at[i, "close"]
-                    _tick_volume = rates_frame.at[i, "tick_volume"]
-                    _real_volume = rates_frame.at[i, "real_volume"]
+                    _volume = rates_frame.at[i, "volume"]
+                    _value = rates_frame.at[i, "value"]
 
-                    print(i, _time, _open, _high, _low, _close, _tick_volume, _real_volume)
+                    print(i, _time, _open, _high, _low, _close, _volume, _value)
 
 
                     if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
                         # let's insert row in table
                         self.execute_with_reconnect(
-                            "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, tick_volume) "
-                                                        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                            (_time, _open, _high, _low, _close, _real_volume, _tick_volume))
+                            "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
+                                                           "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                            (_time, _open, _high, _low, _close, _volume, _value))
 
             # to commit changes to db!!!
             # run this command:
@@ -382,18 +397,18 @@ class SharesDataLoader():
             if timeframe == mt5.TIMEFRAME_M5:   _timeframe = "M5"
             if timeframe == mt5.TIMEFRAME_M1:   _timeframe = "M1"
 
-            table_name = ticker + "_" + _timeframe
+            table_name = ticker + "_new_" + _timeframe
             self.execute_with_reconnect(
-                "SELECT time, open, high, low, close, tick_volume FROM `" + table_name + "`"
+                "SELECT time, open, high, low, close, volume, value FROM `" + table_name + "`"
             )
 
             # Get all data from table
             rows = self.cursor.fetchall()
-            dataframe = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Tick_Volume"])
+            dataframe = pd.DataFrame(rows, columns=["Date", "Open", "High", "Low", "Close", "Volume", "Value"])
             # dataframe = dataframe[::-1].reset_index(drop=True)  # Reverse Ordering of DataFrame Rows + Reset index
 
             if not os.path.exists(export_dir): os.makedirs(export_dir)
-            dataframe.to_csv(os.path.join(export_dir, ticker + "_" + _timeframe + ".csv"), index=False,
+            dataframe.to_csv(os.path.join(export_dir, ticker + "_new_" + _timeframe + ".csv"), index=False,
                              encoding='utf-8')
             # ----------------------- Создание таблицы в реальном времени -----------------------
 
@@ -440,13 +455,14 @@ class SharesDataLoader():
 
             check_we_have_next_bar_loaded = False
             while not check_we_have_next_bar_loaded:
-                rates = mt5.copy_rates_from(ticker, timeframe, utc_till, how_many_bars)
-
+ #               rates = mt5.copy_rates_from(ticker, timeframe, utc_till, how_many_bars)
+                today1 = datetime.date.today().strftime("%Y-%m-%d")
                 # создадим из полученных данных DataFrame
-                rates_frame = pd.DataFrame(rates)
+                start_moex = last_bar_time - datetime.timedelta(seconds=time_in_seconds_bar * 5)
+                rates_frame = self.get_moex_data(start_moex, today1, self.TICKER)
                 # сконвертируем время в виде секунд в формат datetime
                 if len(rates_frame.index):
-                    rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
+                    rates_frame['time'] = pd.to_datetime(rates_frame['time'])
 
                 # проверка, что есть данные следующей свечи
                 for i in range(len(rates_frame.index)):
@@ -471,16 +487,16 @@ class SharesDataLoader():
                 _high = rates_frame.at[i, "high"]
                 _low = rates_frame.at[i, "low"]
                 _close = rates_frame.at[i, "close"]
-                _tick_volume = rates_frame.at[i, "tick_volume"]
-                _real_volume = rates_frame.at[i, "real_volume"]
-                print(i, _time, _open, _high, _low, _close, _tick_volume, _real_volume)
+                _volume = rates_frame.at[i, "volume"]
+                _value = rates_frame.at[i, "value"]
+                print(i, _time, _open, _high, _low, _close, _volume, _value)
 
                 if _time >= last_bar_time and _time < next_bar_time:
                     # let's insert row in table
-                    execute_with_reconnect(self,
-                        "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, tick_volume) "
-                                                        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (_time, _open, _high, _low, _close, _real_volume, _tick_volume))
+                    self.execute_with_reconnect(
+                          "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
+                                                         "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                          (_time, _open, _high, _low, _close, _volume, _value))
             # to commit changes to db!!!
             # run this command:
             self.conn.commit()
