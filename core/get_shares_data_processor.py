@@ -83,6 +83,14 @@ class SharesDataLoader():
 
     def get_moex_data(self, start_date, end_date, ticker):
         """Загружает исторические данные с MOEX ISS API с использованием apimoex."""
+        """Для
+        фьючерсов:
+        market = "forts",
+        engine = "futures",
+        Для
+        валюты:
+        market = "selt",
+        engine = "currency","""
         try:
             # 1. Формируем параметры запроса
             start = start_date
