@@ -17,7 +17,7 @@ import requests
 class SharesDataLoader():
     """A class for loading shares data from MetaTrader5"""
 
-    def __init__(self, share_name, ticker):
+    def __init__(self, share_name, ticker, market):
         self.share_name = share_name
         self.conn = None
         self.cursor = None
@@ -27,6 +27,7 @@ class SharesDataLoader():
         self.TICKER = ticker  # Тикер акции
         self.START_DATE = None
         self.END_DATE = datetime.date.today().strftime("%Y-%m-%d")  # Сегодняшняя дата
+        self.market = market
         # --- Конец настройки ---
 
         self.timezone = pytz.timezone("Etc/UTC")    # установим таймзону в UTC
@@ -81,24 +82,23 @@ class SharesDataLoader():
             return how_many_bars_update
         return how_many_bars_max
 
-    def get_moex_data(self, start_date, end_date, ticker):
+    def get_moex_data(self, start_date, end_date, ticker, market):
         """Загружает исторические данные с MOEX ISS API с использованием apimoex."""
-        """Для
-        фьючерсов:
-        market = "forts",
-        engine = "futures",
-        Для
-        валюты:
-        market = "selt",
-        engine = "currency","""
         try:
             # 1. Формируем параметры запроса
             start = start_date
             end = end_date
             with requests.Session() as session:
-            # 2. Получаем исторические данные (apimoex сама управляет сессией)
-                data = apimoex.get_market_candles(session = session, security = ticker, interval = 24, start = start_date, end = end_date, columns = None)
-
+                # 2. Получаем исторические данные (apimoex сама управляет сессией)
+                if market == "stocks":
+                    data = apimoex.get_market_candles(session=session, security=ticker, interval=24, start=start,
+                                                      end=end, columns=None)
+                elif market == "indexes":
+                    data = apimoex.get_market_candles(session=session, security=ticker, interval=24, start=start,
+                                                      end=end, columns=None, market="index")
+                elif market == "futures":
+                    data = apimoex.get_market_candles(session=session, security=ticker, interval=24, start=start,
+                                                      end=end, columns=None, market="forts", engine="futures")
             # 3. Преобразуем данные в DataFrame
             df = pd.DataFrame(data)
             df = df.rename(columns={'begin': 'time'})
@@ -107,6 +107,7 @@ class SharesDataLoader():
             return df.iloc[:, :-1]
 
         except Exception as e:
+
             print(f"Ошибка при загрузке данных: {e}")
             return None
 
@@ -303,7 +304,99 @@ class SharesDataLoader():
             print("Время до которого сейчас скачаются бары в новый датафрейм:", utc_till)
 #            rates = mt5.copy_rates_from(ticker, timeframe, utc_till, how_many_bars)
             # создадим из полученных данных DataFrame
-            rates_frame = self.get_moex_data(START_DATE, self.END_DATE, self.TICKER)
+            if self.market == "futures":
+                if self.TICKER == "SBERF":
+                    tickers = ['SRH2_2012', 'SRM2_2012', 'SRU2_2012', 'SRZ2_2012', 'SRH3_2013', 'SRM3_2013',
+                               'SRU3_2013', 'SRZ3_2013', 'SRH4_2014', 'SRM4_2014', 'SRU4_2014', 'SRZ4_2014',
+                               'SRH5_2015', 'SRM5_2015', 'SRU5_2015', 'SRZ5_2015', 'SRH6_2016', 'SRM6_2016',
+                               'SRU6_2016', 'SRZ6_2016', 'SRH7_2017', 'SRM7_2017', 'SRU7_2017', 'SRZ7_2017',
+                               'SRH8_2018', 'SRM8_2018', 'SRU8_2018', 'SRZ8_2018', 'SRH9', 'SRM9', 'SRU9', 'SRZ9',
+                               'SRH0', 'SRM0', 'SRU0', 'SRZ0', 'SRH1', 'SRM1', 'SRU1', 'SRZ1', 'SRH2', 'SRM2', 'SRU2',
+                               'SRZ2', 'SRH3', 'SRM3', 'SRU3',
+                               'SRZ3', 'SRH4', 'SRM4', 'SRU4', 'SRZ4', 'SRH5', 'SRM5', 'SRU5']
+
+                def concat_futures(df1, df2):
+                    last_time1 = df1['time'].iloc[-1]
+
+                    index2 = (df2['time'] == last_time1).idxmax()
+
+                    df = pd.concat((df1[:-1], df2[index2:]), ignore_index=True)
+                    return df
+
+                for i in range(len(tickers) - 1):
+                    df1 = self.get_moex_data(START_DATE, self.END_DATE, tickers[i], self.market)
+                    df2 = self.get_moex_data(START_DATE, self.END_DATE, tickers[i+1], self.market)
+
+                    if i == 0:
+                        df = concat_futures(df1, df2)
+                    else:
+                        df = concat_futures(df, df2)
+
+                    df.reset_index(drop=True, inplace=True)
+
+                    df['time'] = pd.to_datetime(df['time'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+
+                def insert_missing_dates(df, missing_dates, data_to_insert):
+
+                    # Убедимся, что количество дат соответствует количеству данных
+                    if len(missing_dates) != len(data_to_insert):
+                        raise ValueError("Количество дат и данных для вставки не совпадают.")
+
+                    # 1. Преобразуем существующую колонку time в datetime
+                    df['time'] = pd.to_datetime(df['time'])
+
+                    # 2. Создаем новые строки в виде DataFrame
+                    new_rows = []
+                    for i in range(len(missing_dates)):
+                        date_str = missing_dates[i]
+                        data = data_to_insert[i]
+                        # Заполняем все колонки
+                        new_row = pd.DataFrame([data])  # Создаем DataFrame из словаря
+                        new_row['time'] = pd.to_datetime([date_str])  # Преобразуем дату в datetime
+                        new_rows.append(new_row)
+
+                    # 3. Объединяем новые строки с существующим DataFrame
+                    df = pd.concat([df, *new_rows], ignore_index=True)
+
+                    # 4. Сортируем DataFrame по дате
+                    df = df.sort_values(by='time').reset_index(drop=True)
+
+                    # 5. Возвращаем исходный формат time
+                    df['time'] = df['time'].dt.strftime('%Y-%m-%d')
+
+                    return df
+
+                missing_dates = ['2013-03-14', '2013-09-26', '2013-10-09', '2013-11-08', '2013-11-20']
+
+                # Вы знаете, какие данные должны быть вставлены для этих дат (замените на реальные значения)
+                data_to_insert = [
+                    {'open': 10304, 'close': 10341, 'high': 10399, 'low': 10233, 'value': 0, 'volume': 412376,
+                     'time': '2013-03-14'},
+                    {'open': 10328, 'close': 10270, 'high': 10389, 'low': 10208, 'value': 0, 'volume': 605678,
+                     'time': '2013-09-26'},
+                    {'open': 10308, 'close': 10279, 'high': 10406, 'low': 10204, 'value': 0, 'volume': 549267,
+                     'time': '2013-10-09'},
+                    {'open': 10383, 'close': 10229, 'high': 10393, 'low': 10206, 'value': 0, 'volume': 621349,
+                     'time': '2013-11-08'},
+                    {'open': 10656, 'close': 10621, 'high': 10697, 'low': 10541, 'value': 0, 'volume': 621349,
+                     'time': '2013-11-20'}
+                ]
+
+                for n in ['2013-12-14', '2014-06-13', '2019-03-08', '2022-01-07', '2017-05-01', '2022-02-23',
+                          '2022-02-28']:
+                    index1 = (df['time'] == n).idxmax()
+                    df = df.drop(index1)
+
+                df = insert_missing_dates(df, missing_dates, data_to_insert)
+                df = df.reset_index(drop=True)
+
+
+                df['time'] = pd.to_datetime(df['time'], format='%Y-%m-%d')
+
+                rates_frame = df
+
+            else:
+                rates_frame = self.get_moex_data(START_DATE, self.END_DATE, self.TICKER, self.market)
             # сконвертируем время в виде секунд в формат datetime
             if len(rates_frame.index):
 #                rates_frame['time'] = pd.to_datetime(rates_frame['time'], unit='s')
