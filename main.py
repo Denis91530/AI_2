@@ -6,7 +6,7 @@ import datetime
 from threading import Thread    # для поточной закачки разных датафреймов
 import cv2
 import pandas as pd
-import MySQLdb                  # импортируем модуль для работы с БД MySql    # импортируем модуль для подключения к MetaTrader5
+import MySQLdb                  # импортируем модуль для работы с БД MySql # импортируем модуль для подключения к MetaTrader5
 import pandas as pd             # импортируем модуль pandas для вывода полученных данных в табличной форме
 import time, datetime
 import pytz
@@ -16,7 +16,7 @@ pd.set_option('display.width', 1500)      # макс. ширина таблиц�
 
 def main():
     ticker = "SBERF"
-    market = "futures"
+    market = "futures"  # stocks indexes futures
     timeframe = mt5.TIMEFRAME_D1
     how_many_bars = 70000
     load_data = SharesDataLoader(ticker, ticker, market)

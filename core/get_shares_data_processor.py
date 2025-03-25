@@ -314,86 +314,89 @@ class SharesDataLoader():
                                'SRH0', 'SRM0', 'SRU0', 'SRZ0', 'SRH1', 'SRM1', 'SRU1', 'SRZ1', 'SRH2', 'SRM2', 'SRU2',
                                'SRZ2', 'SRH3', 'SRM3', 'SRU3',
                                'SRZ3', 'SRH4', 'SRM4', 'SRU4', 'SRZ4', 'SRH5', 'SRM5', 'SRU5']
+                print()
+                if rows:
+                    rates_frame = self.get_moex_data(START_DATE, self.END_DATE, tickers[-2], self.market)
+                else:
+                    def concat_futures(df1, df2):
+                        last_time1 = df1['time'].iloc[-1]
 
-                def concat_futures(df1, df2):
-                    last_time1 = df1['time'].iloc[-1]
+                        index2 = (df2['time'] == last_time1).idxmax()
 
-                    index2 = (df2['time'] == last_time1).idxmax()
+                        df = pd.concat((df1[:-1], df2[index2:]), ignore_index=True)
+                        return df
 
-                    df = pd.concat((df1[:-1], df2[index2:]), ignore_index=True)
-                    return df
+                    for i in range(len(tickers) - 1):
+                        df1 = self.get_moex_data(START_DATE, self.END_DATE, tickers[i], self.market)
+                        df2 = self.get_moex_data(START_DATE, self.END_DATE, tickers[i+1], self.market)
 
-                for i in range(len(tickers) - 1):
-                    df1 = self.get_moex_data(START_DATE, self.END_DATE, tickers[i], self.market)
-                    df2 = self.get_moex_data(START_DATE, self.END_DATE, tickers[i+1], self.market)
+                        if i == 0:
+                            df = concat_futures(df1, df2)
+                        else:
+                            df = concat_futures(df, df2)
 
-                    if i == 0:
-                        df = concat_futures(df1, df2)
-                    else:
-                        df = concat_futures(df, df2)
+                        df.reset_index(drop=True, inplace=True)
 
-                    df.reset_index(drop=True, inplace=True)
+                        df['time'] = pd.to_datetime(df['time'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
 
-                    df['time'] = pd.to_datetime(df['time'], format='%Y-%m-%d').dt.strftime('%Y-%m-%d')
+                    def insert_missing_dates(df, missing_dates, data_to_insert):
 
-                def insert_missing_dates(df, missing_dates, data_to_insert):
+                        # Убедимся, что количество дат соответствует количеству данных
+                        if len(missing_dates) != len(data_to_insert):
+                            raise ValueError("Количество дат и данных для вставки не совпадают.")
 
-                    # Убедимся, что количество дат соответствует количеству данных
-                    if len(missing_dates) != len(data_to_insert):
-                        raise ValueError("Количество дат и данных для вставки не совпадают.")
+                        # 1. Преобразуем существующую колонку time в datetime
+                        df['time'] = pd.to_datetime(df['time'])
 
-                    # 1. Преобразуем существующую колонку time в datetime
-                    df['time'] = pd.to_datetime(df['time'])
+                        # 2. Создаем новые строки в виде DataFrame
+                        new_rows = []
+                        for i in range(len(missing_dates)):
+                            date_str = missing_dates[i]
+                            data = data_to_insert[i]
+                            # Заполняем все колонки
+                            new_row = pd.DataFrame([data])  # Создаем DataFrame из словаря
+                            new_row['time'] = pd.to_datetime([date_str])  # Преобразуем дату в datetime
+                            new_rows.append(new_row)
 
-                    # 2. Создаем новые строки в виде DataFrame
-                    new_rows = []
-                    for i in range(len(missing_dates)):
-                        date_str = missing_dates[i]
-                        data = data_to_insert[i]
-                        # Заполняем все колонки
-                        new_row = pd.DataFrame([data])  # Создаем DataFrame из словаря
-                        new_row['time'] = pd.to_datetime([date_str])  # Преобразуем дату в datetime
-                        new_rows.append(new_row)
+                        # 3. Объединяем новые строки с существующим DataFrame
+                        df = pd.concat([df, *new_rows], ignore_index=True)
 
-                    # 3. Объединяем новые строки с существующим DataFrame
-                    df = pd.concat([df, *new_rows], ignore_index=True)
+                        # 4. Сортируем DataFrame по дате
+                        df = df.sort_values(by='time').reset_index(drop=True)
 
-                    # 4. Сортируем DataFrame по дате
-                    df = df.sort_values(by='time').reset_index(drop=True)
+                        # 5. Возвращаем исходный формат time
+                        df['time'] = df['time'].dt.strftime('%Y-%m-%d')
 
-                    # 5. Возвращаем исходный формат time
-                    df['time'] = df['time'].dt.strftime('%Y-%m-%d')
+                        return df
 
-                    return df
+                    missing_dates = ['2013-03-14', '2013-09-26', '2013-10-09', '2013-11-08', '2013-11-20']
 
-                missing_dates = ['2013-03-14', '2013-09-26', '2013-10-09', '2013-11-08', '2013-11-20']
+                    # Вы знаете, какие данные должны быть вставлены для этих дат (замените на реальные значения)
+                    data_to_insert = [
+                        {'open': 10304, 'close': 10341, 'high': 10399, 'low': 10233, 'value': 0, 'volume': 412376,
+                         'time': '2013-03-14'},
+                        {'open': 10328, 'close': 10270, 'high': 10389, 'low': 10208, 'value': 0, 'volume': 605678,
+                         'time': '2013-09-26'},
+                        {'open': 10308, 'close': 10279, 'high': 10406, 'low': 10204, 'value': 0, 'volume': 549267,
+                         'time': '2013-10-09'},
+                        {'open': 10383, 'close': 10229, 'high': 10393, 'low': 10206, 'value': 0, 'volume': 621349,
+                         'time': '2013-11-08'},
+                        {'open': 10656, 'close': 10621, 'high': 10697, 'low': 10541, 'value': 0, 'volume': 621349,
+                         'time': '2013-11-20'}
+                    ]
 
-                # Вы знаете, какие данные должны быть вставлены для этих дат (замените на реальные значения)
-                data_to_insert = [
-                    {'open': 10304, 'close': 10341, 'high': 10399, 'low': 10233, 'value': 0, 'volume': 412376,
-                     'time': '2013-03-14'},
-                    {'open': 10328, 'close': 10270, 'high': 10389, 'low': 10208, 'value': 0, 'volume': 605678,
-                     'time': '2013-09-26'},
-                    {'open': 10308, 'close': 10279, 'high': 10406, 'low': 10204, 'value': 0, 'volume': 549267,
-                     'time': '2013-10-09'},
-                    {'open': 10383, 'close': 10229, 'high': 10393, 'low': 10206, 'value': 0, 'volume': 621349,
-                     'time': '2013-11-08'},
-                    {'open': 10656, 'close': 10621, 'high': 10697, 'low': 10541, 'value': 0, 'volume': 621349,
-                     'time': '2013-11-20'}
-                ]
+                    for n in ['2013-12-14', '2014-06-13', '2019-03-08', '2022-01-07', '2017-05-01', '2022-02-23',
+                              '2022-02-28']:
+                        index1 = (df['time'] == n).idxmax()
+                        df = df.drop(index1)
 
-                for n in ['2013-12-14', '2014-06-13', '2019-03-08', '2022-01-07', '2017-05-01', '2022-02-23',
-                          '2022-02-28']:
-                    index1 = (df['time'] == n).idxmax()
-                    df = df.drop(index1)
-
-                df = insert_missing_dates(df, missing_dates, data_to_insert)
-                df = df.reset_index(drop=True)
+                    df = insert_missing_dates(df, missing_dates, data_to_insert)
+                    df = df.reset_index(drop=True)
 
 
-                df['time'] = pd.to_datetime(df['time'], format='%Y-%m-%d')
+                    df['time'] = pd.to_datetime(df['time'], format='%Y-%m-%d')
 
-                rates_frame = df
+                    rates_frame = df
 
             else:
                 rates_frame = self.get_moex_data(START_DATE, self.END_DATE, self.TICKER, self.market)
