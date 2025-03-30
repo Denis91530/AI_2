@@ -15,8 +15,8 @@ pd.set_option('display.max_columns', 500) # сколько столбцов по
 pd.set_option('display.width', 1500)      # макс. ширина таблицы для показа
 
 def main():
-    ticker = "SBERF"
-    market = "futures"  # stocks indexes futures
+    ticker = "RTSI"
+    market = "indexes"  # stocks indexes futures
     timeframe = mt5.TIMEFRAME_D1
     how_many_bars = 70000
     load_data = SharesDataLoader(ticker, ticker, market)
