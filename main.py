@@ -20,7 +20,7 @@ def main():
     timeframe = mt5.TIMEFRAME_D1
     how_many_bars = 70000
     load_data = SharesDataLoader(ticker, ticker, market)
-    load_data.connect_to_metatrader5(path=f"C:\Program Files\MetaTrader 5\terminal64.exe")
+#    load_data.connect_to_metatrader5(path=f"C:\Program Files\MetaTrader 5\terminal64.exe")
     load_data.connect_to_db( host="127.0.0.1",
                             user="root",
                             passwd="DEN123",
