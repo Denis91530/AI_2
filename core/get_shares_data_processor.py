@@ -546,63 +546,177 @@ class SharesDataLoader():
             print("\nВесь новый датафрейм с данными:")
             print(rates_frame)
 
-            desired_time = datetime.time(10, 0, 0)
             current_time = datetime.datetime.now().time()
             a = datetime.datetime.now().weekday()
 
-            if current_time < desired_time or a == 5 or a == 6:
-                # Код, если текущее время меньше 10:00
-                print("\nСейчас время до 10:00, биржа закрыта")
-                print("\nТолько скачанный датафрейм с данными из нового:")
+            if self.market == "indexes":
+                desired_time = datetime.time(10, 0, 0)
+                if current_time < desired_time or a == 5 or a == 6:
+                    # Код, если текущее время меньше 10:00
+                    print("\nСейчас время до 10:00, биржа закрыта для индексов")
+                    print("\nТолько скачанный датафрейм с данными из нового:")
 
-                for i in range(len(rates_frame.index)):
-                    _time = rates_frame.at[i, "time"]
-                    _open = rates_frame.at[i, "open"]
-                    _high = rates_frame.at[i, "high"]
-                    _low = rates_frame.at[i, "low"]
-                    _close = rates_frame.at[i, "close"]
-                    _volume = rates_frame.at[i, "volume"]
-                    _value = rates_frame.at[i, "value"]
+                    for i in range(len(rates_frame.index)):
+                        _time = rates_frame.at[i, "time"]
+                        _open = rates_frame.at[i, "open"]
+                        _high = rates_frame.at[i, "high"]
+                        _low = rates_frame.at[i, "low"]
+                        _close = rates_frame.at[i, "close"]
+                        _volume = rates_frame.at[i, "volume"]
+                        _value = rates_frame.at[i, "value"]
 
-                    print(i, _time, _open, _high, _low, _close, _volume, _value)
-                    if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
-                        # let's insert row in table
-                        self.execute_with_reconnect(
-                            "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
-                                                           "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                            (_time, _open, _high, _low, _close, _volume, _value))
-            else:
-                # Код, если текущее время больше или равно 10:00
-                print("\nСейчас время после 10:00, биржа открыта")
-                print("\nТолько скачанный датафрейм с данными из нового:")
-                for i in range(len(rates_frame.index) - 1):  # Последний бар не берем -1 т.к. он еще формируется
-                    _time = rates_frame.at[i, "time"]
-                    _open = rates_frame.at[i, "open"]
-                    _high = rates_frame.at[i, "high"]
-                    _low = rates_frame.at[i, "low"]
-                    _close = rates_frame.at[i, "close"]
-                    _volume = rates_frame.at[i, "volume"]
-                    _value = rates_frame.at[i, "value"]
+                        print(i, _time, _open, _high, _low, _close, _volume, _value)
+                        if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
+                            # let's insert row in table
+                            self.execute_with_reconnect(
+                                "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
+                                                               "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                                (_time, _open, _high, _low, _close, _volume, _value))
+                else:
+                    # Код, если текущее время больше или равно 10:00
+                    print("\nСейчас время после 10:00, биржа открыта")
+                    print("\nТолько скачанный датафрейм с данными из нового:")
+                    for i in range(len(rates_frame.index) - 1):  # Последний бар не берем -1 т.к. он еще формируется
+                        _time = rates_frame.at[i, "time"]
+                        _open = rates_frame.at[i, "open"]
+                        _high = rates_frame.at[i, "high"]
+                        _low = rates_frame.at[i, "low"]
+                        _close = rates_frame.at[i, "close"]
+                        _volume = rates_frame.at[i, "volume"]
+                        _value = rates_frame.at[i, "value"]
 
-                    print(i, _time, _open, _high, _low, _close, _volume, _value)
+                        print(i, _time, _open, _high, _low, _close, _volume, _value)
+
+                        if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
+                            # let's insert row in table
+                            self.execute_with_reconnect(
+                                "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
+                                                               "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                                (_time, _open, _high, _low, _close, _volume, _value))
+
+                # to commit changes to db!!!
+                # run this command:
+                self.conn.commit()
+                if current_time < desired_time or a == 5 or a == 6:
+                    last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(
+                        seconds=time_in_seconds_bar)
+                elif a == 0 and current_time > desired_time:
+                    last_bar_time = rates_frame.at[len(rates_frame.index) - 2, "time"] + datetime.timedelta(
+                        seconds=time_in_seconds_bar)
+                else:
+                    last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"]
+
+            elif self.market == "futures":
+                desired_time = datetime.time(9, 0, 0)
+                if current_time < desired_time or a == 5 or a == 6:
+                    # Код, если текущее время меньше 9:00
+                    print("\nСейчас время до 9:00, биржа закрыта для фьючерсов")
+                    print("\nТолько скачанный датафрейм с данными из нового:")
+
+                    for i in range(len(rates_frame.index)):
+                        _time = rates_frame.at[i, "time"]
+                        _open = rates_frame.at[i, "open"]
+                        _high = rates_frame.at[i, "high"]
+                        _low = rates_frame.at[i, "low"]
+                        _close = rates_frame.at[i, "close"]
+                        _volume = rates_frame.at[i, "volume"]
+                        _value = rates_frame.at[i, "value"]
+
+                        print(i, _time, _open, _high, _low, _close, _volume, _value)
+                        if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
+                            # let's insert row in table
+                            self.execute_with_reconnect(
+                                "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
+                                                               "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                                (_time, _open, _high, _low, _close, _volume, _value))
+                else:
+                    # Код, если текущее время больше или равно 10:00
+                    print("\nСейчас время после 9:00, биржа открыта для фьючерсов")
+                    print("\nТолько скачанный датафрейм с данными из нового:")
+                    for i in range(len(rates_frame.index) - 1):  # Последний бар не берем -1 т.к. он еще формируется
+                        _time = rates_frame.at[i, "time"]
+                        _open = rates_frame.at[i, "open"]
+                        _high = rates_frame.at[i, "high"]
+                        _low = rates_frame.at[i, "low"]
+                        _close = rates_frame.at[i, "close"]
+                        _volume = rates_frame.at[i, "volume"]
+                        _value = rates_frame.at[i, "value"]
+
+                        print(i, _time, _open, _high, _low, _close, _volume, _value)
 
 
-                    if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
-                        # let's insert row in table
-                        self.execute_with_reconnect(
-                            "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
-                                                           "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                            (_time, _open, _high, _low, _close, _volume, _value))
+                        if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
+                            # let's insert row in table
+                            self.execute_with_reconnect(
+                                "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
+                                                               "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                                (_time, _open, _high, _low, _close, _volume, _value))
 
-            # to commit changes to db!!!
-            # run this command:
-            self.conn.commit()
-            if current_time < desired_time or a == 5 or a == 6:
-                last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(seconds = time_in_seconds_bar)
-            elif a == 0 and current_time > desired_time:
-                last_bar_time = rates_frame.at[len(rates_frame.index) - 2, "time"] + datetime.timedelta(seconds = time_in_seconds_bar)
-            else:
-                last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"]
+                # to commit changes to db!!!
+                # run this command:
+                self.conn.commit()
+                if current_time < desired_time or a == 5 or a == 6:
+                    last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(
+                        seconds=time_in_seconds_bar)
+                elif a == 0 and current_time > desired_time:
+                    last_bar_time = rates_frame.at[len(rates_frame.index) - 2, "time"] + datetime.timedelta(
+                        seconds=time_in_seconds_bar)
+                else:
+                    last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"]
+
+            elif self.market == "stocks":
+                desired_time = datetime.time(7, 0, 0)
+                if current_time < desired_time:
+                    # Код, если текущее время меньше 10:00
+                    print("\nСейчас время до 7:00, биржа закрыта для акций")
+                    print("\nТолько скачанный датафрейм с данными из нового:")
+
+                    for i in range(len(rates_frame.index)):
+                        _time = rates_frame.at[i, "time"]
+                        _open = rates_frame.at[i, "open"]
+                        _high = rates_frame.at[i, "high"]
+                        _low = rates_frame.at[i, "low"]
+                        _close = rates_frame.at[i, "close"]
+                        _volume = rates_frame.at[i, "volume"]
+                        _value = rates_frame.at[i, "value"]
+
+                        print(i, _time, _open, _high, _low, _close, _volume, _value)
+                        if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
+                            # let's insert row in table
+                            self.execute_with_reconnect(
+                                "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
+                                                               "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                                (_time, _open, _high, _low, _close, _volume, _value))
+                else:
+                    # Код, если текущее время больше или равно 10:00
+                    print("\nСейчас время после 7:00, биржа открыта для акций")
+                    print("\nТолько скачанный датафрейм с данными из нового:")
+                    for i in range(len(rates_frame.index) - 1):  # Последний бар не берем -1 т.к. он еще формируется
+                        _time = rates_frame.at[i, "time"]
+                        _open = rates_frame.at[i, "open"]
+                        _high = rates_frame.at[i, "high"]
+                        _low = rates_frame.at[i, "low"]
+                        _close = rates_frame.at[i, "close"]
+                        _volume = rates_frame.at[i, "volume"]
+                        _value = rates_frame.at[i, "value"]
+
+                        print(i, _time, _open, _high, _low, _close, _volume, _value)
+
+                        if ((rows[0][0] != None) and (_time >= last_bar_time)) or ((rows[0][0] == None)):
+                            # let's insert row in table
+                            self.execute_with_reconnect(
+                                "INSERT INTO `" + table_name + "` (time, open, high, low, close, volume, value) "
+                                                               "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                                (_time, _open, _high, _low, _close, _volume, _value))
+
+                # to commit changes to db!!!
+                # run this command:
+                self.conn.commit()
+                if current_time < desired_time:
+                    last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(
+                        seconds=time_in_seconds_bar)
+                else:
+                    last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"]
 
             print("\nВремя загрузки последнего бара:", last_bar_time)
             if a == 0 or a == 5 or a == 6:
