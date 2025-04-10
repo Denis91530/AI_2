@@ -548,10 +548,10 @@ class SharesDataLoader():
 
             current_time = datetime.datetime.now().time()
             a = datetime.datetime.now().weekday()
-
+            desired_time1 = datetime.time(23, 51, 0)
             if self.market == "indexes":
                 desired_time = datetime.time(10, 0, 0)
-                if current_time < desired_time or a == 5 or a == 6:
+                if current_time < desired_time or a == 5 or a == 6 or current_time > desired_time1:
                     # Код, если текущее время меньше 10:00
                     print("\nСейчас время до 10:00, биржа закрыта для индексов")
                     print("\nТолько скачанный датафрейм с данными из нового:")
@@ -597,7 +597,7 @@ class SharesDataLoader():
                 # to commit changes to db!!!
                 # run this command:
                 self.conn.commit()
-                if current_time < desired_time or a == 5 or a == 6:
+                if current_time < desired_time or a == 5 or a == 6  or current_time > desired_time1:
                     last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(
                         seconds=time_in_seconds_bar)
                 elif a == 0 and current_time > desired_time:
@@ -608,7 +608,7 @@ class SharesDataLoader():
 
             elif self.market == "futures":
                 desired_time = datetime.time(9, 0, 0)
-                if current_time < desired_time or a == 5 or a == 6:
+                if current_time < desired_time or a == 5 or a == 6 or current_time > desired_time1:
                     # Код, если текущее время меньше 9:00
                     print("\nСейчас время до 9:00, биржа закрыта для фьючерсов")
                     print("\nТолько скачанный датафрейм с данными из нового:")
@@ -655,7 +655,7 @@ class SharesDataLoader():
                 # to commit changes to db!!!
                 # run this command:
                 self.conn.commit()
-                if current_time < desired_time or a == 5 or a == 6:
+                if current_time < desired_time or a == 5 or a == 6 or current_time > desired_time1:
                     last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(
                         seconds=time_in_seconds_bar)
                 elif a == 0 and current_time > desired_time:
@@ -666,7 +666,7 @@ class SharesDataLoader():
 
             elif self.market == "stocks":
                 desired_time = datetime.time(7, 0, 0)
-                if current_time < desired_time:
+                if current_time < desired_time or current_time > desired_time1:
                     # Код, если текущее время меньше 10:00
                     print("\nСейчас время до 7:00, биржа закрыта для акций")
                     print("\nТолько скачанный датафрейм с данными из нового:")
@@ -712,7 +712,7 @@ class SharesDataLoader():
                 # to commit changes to db!!!
                 # run this command:
                 self.conn.commit()
-                if current_time < desired_time:
+                if current_time < desired_time or current_time > desired_time1:
                     last_bar_time = rates_frame.at[len(rates_frame.index) - 1, "time"] + datetime.timedelta(
                         seconds=time_in_seconds_bar)
                 else:
