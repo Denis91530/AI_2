@@ -768,7 +768,7 @@ class SharesDataLoader():
             # ----------------------- Создание таблицы в реальном времени -----------------------
 
             a = datetime.datetime.now().weekday()
-            if a == 0 or a == 5 or a == 6:
+            if (a == 0 or a == 5 or a == 6) and (self.market == "futures" or self.market == "indexes"):
                 next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar * 3)
             else:
                 next_bar_time = last_bar_time + datetime.timedelta(seconds=time_in_seconds_bar)
