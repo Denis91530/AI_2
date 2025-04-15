@@ -15,8 +15,25 @@ pd.set_option('display.max_columns', 500) # сколько столбцов по
 pd.set_option('display.width', 1500)      # макс. ширина таблицы для показа
 
 def main():
-    ticker = "BRENTF"  # SBER SBERP BRENTF SBERF RTSI IMOEX
-    market = "futures"  # stocks indexes futures
+    number = int(input("Введите номер актива, данные по которому хотите скачать -->"))
+    if number == 1: # SBER(1) SBERP(2) BRENTF(3) SBERF(4) RTSI(5) IMOEX(6)
+        ticker = "SBER"         # stocks indexes futures
+        market = "stocks"
+    elif number == 2:
+        ticker = "SBERP"
+        market = "stocks"
+    elif number == 3:
+        ticker = "BRENTF"
+        market = "futures"
+    elif number == 4:
+        ticker = "SBERF"
+        market = "futures"
+    elif number == 5:
+        ticker = "RTSI"
+        market = "indexes"
+    elif number == 6:
+        ticker = "IMOEX"
+        market = "indexes"
     timeframe = mt5.TIMEFRAME_D1
     how_many_bars = 70000
     load_data = SharesDataLoader(ticker, ticker, market)
