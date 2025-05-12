@@ -34,6 +34,12 @@ def main():
     elif number == 6:
         ticker = "IMOEX"
         market = "indexes"
+    elif number == 7:
+        ticker = "VTBR"
+        market = "stocks"
+    elif number == 8:
+        ticker = "BSPB"
+        market = "stocks"
     timeframe = mt5.TIMEFRAME_D1
     how_many_bars = 70000
     load_data = SharesDataLoader(ticker, ticker, market)
