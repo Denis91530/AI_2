@@ -40,6 +40,18 @@ def main():
     elif number == 8:
         ticker = "BSPB"
         market = "stocks"
+    elif number == 9:
+        ticker = "MGNT"
+        market = "stocks"
+    elif number == 10:
+        ticker = "MTSS"
+        market = "stocks"
+    elif number == 11:
+        ticker = "PLZL"
+        market = "stocks"
+    elif number == 12:
+        ticker = "PHOR"
+        market = "stocks"
     timeframe = mt5.TIMEFRAME_D1
     how_many_bars = 70000
     load_data = SharesDataLoader(ticker, ticker, market)
